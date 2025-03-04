@@ -38,28 +38,93 @@ library(tergm)
 Vamos a cargar los datos base disponibles en la librería **ergm**. La librería contiene dos conjuntos de datos de este estudio. El primero es el conjunto **sampson** que tiene la red agregada del estudio y el segundo es **samplink** que incluye 3 de los 5 momentos de tiempo recopilados por Sampson. Cada archivo está en formato *network*.
 
 ```{r}
-data1 <- readxl::read_excel(file.path(getwd(), "Base Limpia.xlsx"))
-data2 <- readxl::read_excel(file.path(getwd(), "Arcos_filtrados.xlsx"))
+nodos <- readxl::read_excel(file.path(getwd(), "Base Limpia.xlsx"))
+arcos <- readxl::read_excel(file.path(getwd(), "Arcos_filtrados.xlsx"))
+head(nodos)
+head(arcos)
+
+```
+```{r,warning=FALSE,message=FALSE}
+g <- graph_from_data_frame(d = arcos, vertices = nodos, directed = TRUE)
+
+print(g)  # Información del grafo
+plot(g, vertex.size=10, vertex.label=NA)  # Visualizar
+```
+```{r,warning=FALSE,message=FALSE}
+edges_df <- as_data_frame(g, what = "edges")
+
+# Verifica los nombres de las columnas
+print(colnames(edges_df))
+
+# Filtrar loops usando las columnas correctas
+loops <- edges_df[edges_df$from == edges_df$to, ]
+print(loops)  # Verificar qué registros tienen loops
+
+edges_df <- edges_df[edges_df$from != edges_df$to, ]
+print(head(edges_df))  # Ver primeras filas
+print(dim(edges_df))   # Ver dimensiones (filas, columnas)
+
+samplike <- network(edges_df, directed = TRUE, matrix.type = "edgelist", loops = FALSE)
+print(list.vertex.attributes(samplike))  # Ver atributos del grafo
+
+```
+```{r,warning=FALSE,message=FALSE}
+# Crear los atributos vacíos si no existen
+set.vertex.attribute(samplike, "group", rep(NA, network.size(samplike)))
+set.vertex.attribute(samplike, "cloisterville", rep(NA, network.size(samplike)))
+# Obtener los nombres de nodos en samplike
+nodo_names <- get.vertex.attribute(samplike, "vertex.names")
+
+# Encontrar los índices de estos nodos en el dataframe nodos
+indices <- match(nodo_names, nodos$name)
+
+# Asegurar que no haya valores fuera de rango
+valid_indices <- !is.na(indices) & indices >= 1 & indices <= nrow(nodos)
+
+# Asignar valores solo a los nodos válidos
+set.vertex.attribute(samplike, "group", ifelse(valid_indices, nodos$group[indices], "Unknown"))
+set.vertex.attribute(samplike, "cloisterville", ifelse(valid_indices, nodos$cloisterville[indices], "Unknown"))
 
 
 ```
-
 <center> <h2>Evaluando los procesos sobre la red agregada (ERGM)</h2> </center>
 
 Para esta parte, la idea es que utilice la red agregada para evaluar los mecanismos operantes en ésta.
 Hay dos aspectos importantes que el grupo le ha solicitado que evalue. Uno es la presencia de homofília relacionada al *grupo* o clasificación creada por Sampson y dos, la asistencia al seminario *cloisterville*. 
 
 1. **Corriendo el ERGM: ** Implemente el ergm para estimar los procesos requeridos por el grupo. Utilice las propiedades estructurales necesarias para asegurar la convergencia del modelo. 
+```{r,warning=FALSE,message=FALSE}
+library(ergm)
+
+# Ajustar el modelo ERGM con los términos especificados
+m1 <- ergm(samplike ~ edges + 
+                      nodematch("group") + 
+                      nodematch("cloisterville") + 
+                      istar(3))
+
+# Resumen del modelo
+summary(m1)
+
+# Obtener los coeficientes exponentiados (para interpretar probabilidades)
+exp(coef(m1))
+
+```
+
 
 ```{r,warning=FALSE,message=FALSE}
-# Correr el ERGM
-#summary(samplike)
-list.vertex.attributes(samplike)
-#m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville"))
-#m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville")+gwdsp(0.5, fixed = TRUE)+ gwidegree(0.5, fixed = TRUE))#igual
 
-#m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville")+mutual) #peor
-#m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville")+ostar(2)) #igual
+# Correr el ERGM
+# Obtener nombres de nodos en samplike
+nodo_names <- get.vertex.attribute(samplike, "vertex.names")
+indices <- match(nodo_names, nodos$name)
+any(indices > nrow(nodos) | indices < 1, na.rm = TRUE)
+print(nodos$group[indices])
+print(nodos$cloisterville[indices])
+
+# Asignar atributos a los nodos en samplike
+set.vertex.attribute(samplike, "group", nodos$group[indices])
+set.vertex.attribute(samplike, "cloisterville", nodos$cloisterville[indices])
+
 m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville")+istar(3))
 summary(m1)
 exp(coef(m1))
