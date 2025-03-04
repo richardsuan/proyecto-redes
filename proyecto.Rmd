@@ -1,0 +1,117 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+
+<center> <h1>Proyecto Redes Sociales</h1> </center>
+
+<center> <h3>Prueba de los modelos ERGM y STERGM en un problema de inversion </h3> </center>
+
+<br />
+
+
+#### Contenido
+
+
+
+#### Situación problema
+
+
+#### Instrucciones generales
+
+
+#### Desarrollo
+
+Importar las librerías a usar. Instálelas si previamente no las tenías antes de importarlas.
+
+```{r,warning=FALSE,message=FALSE}
+library(readr)
+library(tidyverse)
+library(igraph)
+library(ergm)
+library(network)
+library(tergm)
+```
+
+
+Vamos a cargar los datos base disponibles en la librería **ergm**. La librería contiene dos conjuntos de datos de este estudio. El primero es el conjunto **sampson** que tiene la red agregada del estudio y el segundo es **samplink** que incluye 3 de los 5 momentos de tiempo recopilados por Sampson. Cada archivo está en formato *network*.
+
+```{r}
+data1 <- readxl::read_excel(file.path(getwd(), "Base Limpia.xlsx"))
+data2 <- readxl::read_excel(file.path(getwd(), "Arcos_filtrados.xlsx"))
+
+
+```
+
+<center> <h2>Evaluando los procesos sobre la red agregada (ERGM)</h2> </center>
+
+Para esta parte, la idea es que utilice la red agregada para evaluar los mecanismos operantes en ésta.
+Hay dos aspectos importantes que el grupo le ha solicitado que evalue. Uno es la presencia de homofília relacionada al *grupo* o clasificación creada por Sampson y dos, la asistencia al seminario *cloisterville*. 
+
+1. **Corriendo el ERGM: ** Implemente el ergm para estimar los procesos requeridos por el grupo. Utilice las propiedades estructurales necesarias para asegurar la convergencia del modelo. 
+
+```{r,warning=FALSE,message=FALSE}
+# Correr el ERGM
+#summary(samplike)
+list.vertex.attributes(samplike)
+#m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville"))
+#m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville")+gwdsp(0.5, fixed = TRUE)+ gwidegree(0.5, fixed = TRUE))#igual
+
+#m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville")+mutual) #peor
+#m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville")+ostar(2)) #igual
+m1 <- ergm(samplike~edges+nodematch("group")+nodematch("cloisterville")+istar(3))
+summary(m1)
+exp(coef(m1))
+```
+
+¿Qué puede concluir sobre el modelo? Qué le dicen los estimadores sobre la presencia de mecanismos operantes en la red?
+El modelo ERGM describe la estructura de la red en términos de la presencia de arcos, la influencia de los atributos "group" y "cloisterville" y la tendencia de algunos nodos a recibir múltiples conexiones.
+
+El parámetro edges tiene un coeficiente de -2.3743, lo que indica que la red tiene una menor cantidad de conexiones de las que se esperaría en una red aleatoria. El odds ratio es de aproximadamente 0.093, lo que significa que la probabilidad de que exista un arco entre dos nodos en la red es de 9.3%. El p-valor de este parámetro indica que es significativo. 
+El parámetro nodematch.group tiene un coeficiente positivo de 2.8565, lo que sugiere que es más probable que los nodos se conecten con otros que pertenecen al mismo grupo en comparación con lo que se esperaría en una red aleatoria. Esto indica la presencia de homofilia basada en la variable "group", es decir, una tendencia de los nodos a formar vínculos con aquellos que comparten su mismo valor en esta característica. El odds ratio es de aproximadamente 17.4, lo que significa que la probabilidad de conexión entre nodos del mismo grupo es 17.4 veces mayor que el azar. El p-valor de este parámetro indica que es significativo. 
+
+El parámetro nodematch.cloisterville tiene un coeficiente negativo de -0.4112, lo que sugiere que es menos probable que los nodos se conecten con otros que comparten el mismo valor en la variable cloisterville en comparación con lo que se esperaría en una red aleatoria. El odds ratio  es de aproximadamente 0.6315, lo que indica que es 0.3685 veces menos probable que estén conectados por tener el mismo valor en cloisterville. Sin embargo, este parámetro no es estadísticamente significativo, por lo que no se puede concluir con certeza que cloisterville influya en la estructura de la red.
+
+El coeficiente istar(3) es de 0.0399, lo que indica que la presencia de nodos con tres conexiones entrantes es mayor de lo que se esperaría en una red aleatoria. El odds ratio es de 1.0408, lo que indica que la probabilidad de que se forme una estructura en estrella con tres enlaces entrantes es 1.04 veces mayor que en una red aleatoria. El p-valor de este parámetro indica que es significativo. 
+
+2. **Evaluando el desempeño del modelo:** Ahora, evalúe los resultados del modelo utilizando la función *GOF*. Utilice 1000 simulaciones para validar el comportamiento. Grafique los resultados del *GOF* y evalue la convergencia de su modelo. Concluya al respecto de la significancia de los estimadores y la convergencia del modelo. Haga los cambios pertinentes para asegurar que el modelo converja antes de seguir al siguiente literal.
+
+```{r,warning=FALSE,message=FALSE}
+# Correr el GOF
+gf1 <- gof(m1, R=1000)
+
+par(mfrow = c(3,2))
+plot(gf1, main = "")
+
+```
+Inicialmente, el modelo sin istar(3) no lograba converger en la gráfica de indegree, lo que indicaba que no ajustaba bien ciertos patrones estructurales de la red. Sin embargo, tras agregar istar(3), se logró la convergencia en todas las métricas evaluadas en el análisis GOF. En las gráficas, la línea negra de tendencia se encuentra contenida dentro de los intervalos de confianza de las curvas simuladas, lo que sugiere un buen ajuste del modelo a la estructura observada de la red.
+
+<center> <h2>Evaluando los procesos sobre la red temporal (STERGM)</h2> </center>
+
+Dado que ya observó el comportamiento de los mecanismos operantes en la red al agregarla, es hora que evalúe esos mismos procesos en la red temporal.
+
+3. **Corriendo el STERGM: ** Implemente el stergm para estimar los procesos requeridos por el grupo. Utilice las propiedades estructurales necesarias para asegurar la convergencia del modelo. Utilice las mismas propiedades para los procesos de formación y disolución.
+
+```{r,warning=FALSE,message=FALSE}
+
+f1 <- stergm(list(samplk1,samplk2, samplk3), formation = ~ edges+nodematch("group")+nodematch("cloisterville")+ mutual+transitiveties, 
+             dissolution = ~ edges+nodematch("group")+nodematch("cloisterville")+mutual+transitiveties,estimate = "CMLE")
+
+summary(f1)
+
+```
+
+¿Qué puede concluir sobre el modelo? ¿Qué le dicen los estimadores sobre la presencia de mecanismos operantes en la red en el tiempo?
+
+4. **Evaluando el desempeño del modelo:** Ahora evalúe los resultados del modelo utilizando la función *GOF*. Utilice 100 simulaciones para validar el comportamiento. Grafique los resultados del *GOF* y evalue la convergencia de su modelo. Concluya al respecto de la significancia de los estimadores y la convergencia del modelo. Haga los cambios pertinentes para asegurar que el modelo converja antes de seguir al siguiente literal.
+
+```{r,warning=FALSE,message=FALSE}
+# Correr el GOF
+gof.fit1<-gof(f1, control = control.gof.ergm(nsim = 100))
+par(mfrow = c(3,2))
+plot(gof.fit1, main = "")
+
+```
+
+5. ***Conclusiones finales:*** Teniendo en cuenta los resultados de la simulaciones con los modelos ERGM y STERGM, ¿qué podría concluir sobre las dinámicas de las redes de estos grupos de monjes?
