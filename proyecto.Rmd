@@ -23,7 +23,7 @@ output:
 
 #### Desarrollo
 
-Importar las librerías a usar. Instálelas si previamente no las tenías antes de importarlas.
+Se Importan las librerías a usar.
 
 ```{r,warning=FALSE,message=FALSE}
 library(readr)
@@ -34,8 +34,7 @@ library(network)
 library(tergm)
 ```
 
-
-Vamos a cargar los datos base disponibles en la librería **ergm**. La librería contiene dos conjuntos de datos de este estudio. El primero es el conjunto **sampson** que tiene la red agregada del estudio y el segundo es **samplink** que incluye 3 de los 5 momentos de tiempo recopilados por Sampson. Cada archivo está en formato *network*.
+Se cargan los datos a usar del proyecto. El conjunto de datos son dos documentos en donde el primero son los nodos disponibles y el segundo son lo arcos. 
 
 ```{r}
 nodos <- readxl::read_excel(file.path(getwd(), "Base Limpia.xlsx"))
@@ -102,31 +101,49 @@ library(statnet)
 library(readxl)
 
 # Leer los datos
-nodos <- readxl::read_excel(file.path(getwd(), "Base Limpia.xlsx"))
+nodos <- readxl::read_excel(file.path(getwd(), "datos.xlsx"))
 arcos <- readxl::read_excel(file.path(getwd(), "Arcos_filtrados.xlsx"))
 
-# Ver las primeras filas de los datos
+# Verificar las primeras filas
 head(nodos)
 head(arcos)
 
 # Eliminar loops de los arcos
 arcos_sin_loops <- arcos[arcos[, 1] != arcos[, 2], ]
 
+# Verificar valores faltantes en nodos
+sum(is.na(nodos$`Number of Investments`))  # ¿Cuántos valores NA hay?
+
+# Reemplazar NA con la mediana en vez de 0 (si tiene sentido)
+nodos$`Number of Investments`[is.na(nodos$`Number of Investments`)] <- median(nodos$`Number of Investments`, na.rm = TRUE)
+
+# Convertir la variable a numérica
+nodos$`Headquarters Location`[is.na(nodos$`Headquarters Location`)] <- "Unknown"  # Asignar 'Unknown' a los valores faltantes
+nodos$`Number of Investments` <- as.numeric(nodos$`Number of Investments`)
+
 # Crear un objeto network
 samplike <- network(arcos_sin_loops, vertices = nodos, directed = TRUE, matrix.type = "edgelist", vertex.attrnames = names(nodos))
 
-# Verificar los valores faltantes en el atributo 'Headquarters Location'
-nodos$`Headquarters Location`[is.na(nodos$`Headquarters Location`)] <- "Unknown"
-
-# Agregar atributos de los nodos a la red
+# Asignar atributos a la red
+#set.vertex.attribute(samplike, "location", nodos$`Headquarters Location`)
 network.vertex.names(samplike) <- nodos$`Organization Name`
 samplike %v% "location" <- nodos$`Headquarters Location`
+samplike %v% "status" <- nodos$`Operating Status`
+samplike %v% "investments" <- nodos$`Number of Investments`  # Ya sin NA
+
+# Verificar que no haya valores NA en los atributos
+sum(is.na(samplike %v% "investments"))  # Debe ser 0
 
 # Ajustar el modelo ERGM
-m1 <- ergm(samplike ~ edges + nodematch("location"))
+m1 <- ergm(samplike ~ 
+              edges + 
+              nodematch("location") + 
+              nodecov("investments") +
+             nodematch("status"))
 
 # Resumen del modelo
 summary(m1)
+
 ```
 
 
