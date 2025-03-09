@@ -84,7 +84,7 @@ arcos <- readxl::read_excel(file.path(getwd(), "arcos_fase2.xlsx"))
 columna_0 <- nodos_fase2$`0`
 
 # Filtrar las filas de nodos
-nodos_filtrado <- nodos %>%
+nodos <- nodos %>%
   filter(`Organization Name` %in% columna_0)
 
 arcos_sin_loops <- arcos[arcos[, 1] != arcos[, 2], ]
@@ -108,6 +108,7 @@ network.vertex.names(samplike) <- nodos$`Organization Name`
 samplike %v% "location" <- nodos$`Headquarters Location`
 samplike %v% "status" <- nodos$`Operating Status`
 samplike %v% "investments" <- nodos$`Number of Investments`  # Ya sin NA
+samplike %v% "industries" <- nodos$`Industries`  
 
 # Verificar que no haya valores NA en los atributos
 sum(is.na(samplike %v% "investments"))  # Debe ser 0
@@ -117,7 +118,8 @@ m1 <- ergm(samplike ~
               edges + 
               nodematch("location") + 
               nodecov("investments") +
-             nodematch("status"))
+             nodematch("status")+
+             nodematch("industries"))
 
 # Resumen del modelo
 summary(m1)
