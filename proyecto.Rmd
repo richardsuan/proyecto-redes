@@ -68,12 +68,9 @@ nodos <- readxl::read_excel(file.path(getwd(), "datos.xlsx"))
 
 
 ```
-<center> <h2>Evaluando los procesos sobre la red agregada (ERGM)</h2> </center>
 
-Para esta parte, la idea es que utilice la red agregada para evaluar los mecanismos operantes en ésta.
-Hay dos aspectos importantes que el grupo le ha solicitado que evalue. Uno es la presencia de homofília relacionada al *grupo* o clasificación creada por Sampson y dos, la asistencia al seminario *cloisterville*. 
 
-1. **Corriendo el ERGM: ** Implemente el ergm para estimar los procesos requeridos por el grupo. Utilice las propiedades estructurales necesarias para asegurar la convergencia del modelo. 
+1. **Corriendo el ERGM: ** 
 ```{r,warning=FALSE,message=FALSE}
 # Instalar y cargar las librerías necesarias
 library(statnet)
@@ -125,6 +122,8 @@ m1 <- ergm(samplike ~
 # Resumen del modelo
 summary(m1)
 
+
+exp(coef(m1))
 ```
 
 
@@ -135,6 +134,7 @@ gf1 <- gof(m1, R=100)
 par(mfrow = c(3,2))
 plot(gf1, main = "")
 ```
+
 MODELO QAP
 ```{r}
 adjacency_matrix <- as.matrix(as_adjacency_matrix(g, attr = NULL))
@@ -211,9 +211,13 @@ location_matrix <- location_matrix[common_ids, common_ids]
 
 ```{r}
 X_list <- list(industry_matrix, location_matrix)
-qap_fit <-netlogit(adjacency_matrix,X_list, rep = 10)
+qap_fit <-netlogit(adjacency_matrix,X_list, rep = 5)
 ```
 ```{r}
+summary(qap_fit)
+```
+```{r}
+qap_fit <-netlogit(adjacency_matrix,X_list, rep = 10)
 summary(qap_fit)
 ```
 
