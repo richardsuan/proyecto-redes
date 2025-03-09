@@ -6,23 +6,6 @@ output:
 
 <center> <h1>Proyecto Redes Sociales</h1> </center>
 
-<center> <h3>Prueba de los modelos ERGM y STERGM en un problema de inversion </h3> </center>
-
-<br />
-
-
-#### Contenido
-
-
-
-#### Situación problema
-
-
-#### Instrucciones generales
-
-
-#### Desarrollo
-
 Se Importan las librerías a usar.
 
 ```{r,warning=FALSE,message=FALSE}
@@ -69,8 +52,7 @@ nodos <- readxl::read_excel(file.path(getwd(), "datos.xlsx"))
 
 ```
 
-
-1. **Corriendo el ERGM: ** 
+**Modelo ERGM: ** 
 ```{r,warning=FALSE,message=FALSE}
 # Instalar y cargar las librerías necesarias
 library(statnet)
@@ -137,7 +119,8 @@ par(mfrow = c(3,2))
 plot(gf1, main = "")
 ```
 
-MODELO QAP
+**Modelo de Regresión Logística QAP**
+
 ```{r}
 adjacency_matrix <- as.matrix(as_adjacency_matrix(g, attr = NULL))
 ```
@@ -221,10 +204,5 @@ summary(qap_fit)
 ```{r}
 qap_fit <-netlogit(adjacency_matrix,X_list, rep = 10)
 summary(qap_fit)
-```
-
-```{r}
-colnames(nodos)
-
 ```
 
