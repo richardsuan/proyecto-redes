@@ -64,28 +64,7 @@ print(list.vertex.attributes(samplike))  # Ver atributos del grafo
 ```
 ```{r,warning=FALSE,message=FALSE}
 # Crear los atributos vacíos si no existen
-# Ajustar el modelo ERGM con los términos especificados
-m1 <- ergm(samplike ~ edges + 
-                      nodematch("group") + 
-                      nodematch("cloisterville"))
-
-# Resumen del modelo
-summary(m1)
-
-# Obtener los coeficientes exponentiados (para interpretar probabilidades)
-exp(coef(m1))
-# Obtener los nombres de nodos en samplike
-nodo_names <- get.vertex.attribute(samplike, "vertex.names")
-
-# Encontrar los índices de estos nodos en el dataframe nodos
-indices <- match(nodo_names, nodos$name)
-print(indices)
-# Asegurar que no haya valores fuera de rango
-valid_indices <- !is.na(indices) & indices >= 1 & indices <= nrow(nodos)
-
-# Asignar valores solo a los nodos válidos
-set.vertex.attribute(samplike, "group", ifelse(valid_indices, nodos$group[indices], "Unknown"))
-set.vertex.attribute(samplike, "cloisterville", ifelse(valid_indices, nodos$cloisterville[indices], "Unknown"))
+nodos <- readxl::read_excel(file.path(getwd(), "datos.xlsx"))
 
 
 ```
@@ -102,13 +81,15 @@ library(readxl)
 
 # Leer los datos
 nodos <- readxl::read_excel(file.path(getwd(), "datos.xlsx"))
-arcos <- readxl::read_excel(file.path(getwd(), "Arcos_filtrados.xlsx"))
+nodos_fase2 <- readxl::read_excel(file.path(getwd(), "nodos_fase2.xlsx"))
+arcos <- readxl::read_excel(file.path(getwd(), "arcos_fase2.xlsx"))
 
-# Verificar las primeras filas
-head(nodos)
-head(arcos)
+columna_0 <- nodos_fase2$`0`
 
-# Eliminar loops de los arcos
+# Filtrar las filas de nodos
+nodos_filtrado <- nodos %>%
+  filter(`Organization Name` %in% columna_0)
+
 arcos_sin_loops <- arcos[arcos[, 1] != arcos[, 2], ]
 
 # Verificar valores faltantes en nodos
