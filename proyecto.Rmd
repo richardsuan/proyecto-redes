@@ -154,54 +154,90 @@ gf1 <- gof(m1, R=100)
 par(mfrow = c(3,2))
 plot(gf1, main = "")
 ```
+MODELO QAP
+```{r}
+adjacency_matrix <- as.matrix(as_adjacency_matrix(g, attr = NULL))
+```
+```{r}
+# Cargar paquetes necesarios
+library(stringr)
 
-¿Qué puede concluir sobre el modelo? Qué le dicen los estimadores sobre la presencia de mecanismos operantes en la red?
-El modelo ERGM describe la estructura de la red en términos de la presencia de arcos, la influencia de los atributos "group" y "cloisterville" y la tendencia de algunos nodos a recibir múltiples conexiones.
+library(stringr)
 
-El parámetro edges tiene un coeficiente de -2.3743, lo que indica que la red tiene una menor cantidad de conexiones de las que se esperaría en una red aleatoria. El odds ratio es de aproximadamente 0.093, lo que significa que la probabilidad de que exista un arco entre dos nodos en la red es de 9.3%. El p-valor de este parámetro indica que es significativo. 
-El parámetro nodematch.group tiene un coeficiente positivo de 2.8565, lo que sugiere que es más probable que los nodos se conecten con otros que pertenecen al mismo grupo en comparación con lo que se esperaría en una red aleatoria. Esto indica la presencia de homofilia basada en la variable "group", es decir, una tendencia de los nodos a formar vínculos con aquellos que comparten su mismo valor en esta característica. El odds ratio es de aproximadamente 17.4, lo que significa que la probabilidad de conexión entre nodos del mismo grupo es 17.4 veces mayor que el azar. El p-valor de este parámetro indica que es significativo. 
+# Renombrar columnas para que coincidan con el código esperado
+colnames(nodos)[colnames(nodos) == "Organization Name"] <- "Id"
 
-El parámetro nodematch.cloisterville tiene un coeficiente negativo de -0.4112, lo que sugiere que es menos probable que los nodos se conecten con otros que comparten el mismo valor en la variable cloisterville en comparación con lo que se esperaría en una red aleatoria. El odds ratio  es de aproximadamente 0.6315, lo que indica que es 0.3685 veces menos probable que estén conectados por tener el mismo valor en cloisterville. Sin embargo, este parámetro no es estadísticamente significativo, por lo que no se puede concluir con certeza que cloisterville influya en la estructura de la red.
+# Convertir la columna 'Industry Groups' en listas de industrias por empresa
+nodos$`Industry Groups` <- str_split(nodos$`Industry Groups`, ",\\s*")
 
-El coeficiente istar(3) es de 0.0399, lo que indica que la presencia de nodos con tres conexiones entrantes es mayor de lo que se esperaría en una red aleatoria. El odds ratio es de 1.0408, lo que indica que la probabilidad de que se forme una estructura en estrella con tres enlaces entrantes es 1.04 veces mayor que en una red aleatoria. El p-valor de este parámetro indica que es significativo. 
 
-2. **Evaluando el desempeño del modelo:** Ahora, evalúe los resultados del modelo utilizando la función *GOF*. Utilice 1000 simulaciones para validar el comportamiento. Grafique los resultados del *GOF* y evalue la convergencia de su modelo. Concluya al respecto de la significancia de los estimadores y la convergencia del modelo. Haga los cambios pertinentes para asegurar que el modelo converja antes de seguir al siguiente literal.
+# Crear una matriz vacía del tamaño de la red
+num_empresas <- nrow(nodos)
+industry_matrix <- matrix(0, nrow = num_empresas, ncol = num_empresas)
 
-```{r,warning=FALSE,message=FALSE}
-# Correr el GOF
-gf1 <- gof(m1, R=1000)
+rownames(industry_matrix) <- nodos$Id
+colnames(industry_matrix) <- nodos$Id
 
-par(mfrow = c(3,2))
-plot(gf1, main = "")
+
+# Comparar cada par de empresas
+for (i in 1:num_empresas) {
+  for (j in i:num_empresas) {
+    # Obtener industrias de cada empresa
+    industries_i <- unlist(nodos$`Industry Groups`[i])
+    industries_j <- unlist(nodos$`Industry Groups`[j])
+    
+    # Revisar si hay al menos una industria en común
+    if (length(intersect(industries_i, industries_j)) > 0) {
+      industry_matrix[i, j] <- 1
+      industry_matrix[j, i] <- 1  
+    }
+  }
+}
 
 ```
-Inicialmente, el modelo sin istar(3) no lograba converger en la gráfica de indegree, lo que indicaba que no ajustaba bien ciertos patrones estructurales de la red. Sin embargo, tras agregar istar(3), se logró la convergencia en todas las métricas evaluadas en el análisis GOF. En las gráficas, la línea negra de tendencia se encuentra contenida dentro de los intervalos de confianza de las curvas simuladas, lo que sugiere un buen ajuste del modelo a la estructura observada de la red.
+```{r}
+# Crear matriz de similitud de ubicación
+num_empresas <- nrow(nodos)
+location_matrix <- matrix(0, nrow = num_empresas, ncol = num_empresas)
 
-<center> <h2>Evaluando los procesos sobre la red temporal (STERGM)</h2> </center>
+rownames(location_matrix) <- nodos$Id
+colnames(location_matrix) <- nodos$Id
 
-Dado que ya observó el comportamiento de los mecanismos operantes en la red al agregarla, es hora que evalúe esos mismos procesos en la red temporal.
+for (i in 1:num_empresas) {
+  for (j in i:num_empresas) {
+    if (nodos$`Headquarters Location`[i] == nodos$`Headquarters Location`[j]) {
+      location_matrix[i, j] <- 1
+      location_matrix[j, i] <- 1
+    }
+  }
+}
 
-3. **Corriendo el STERGM: ** Implemente el stergm para estimar los procesos requeridos por el grupo. Utilice las propiedades estructurales necesarias para asegurar la convergencia del modelo. Utilice las mismas propiedades para los procesos de formación y disolución.
+```
+```{r}
+dim(adjacency_matrix)
+dim(industry_matrix)
+dim(location_matrix)
+```
+```{r}
+common_ids <- rownames(adjacency_matrix)  # Empresas en la matriz de adyacencia
 
-```{r,warning=FALSE,message=FALSE}
-
-f1 <- stergm(list(samplk1,samplk2, samplk3), formation = ~ edges+nodematch("group")+nodematch("cloisterville")+ mutual+transitiveties, 
-             dissolution = ~ edges+nodematch("group")+nodematch("cloisterville")+mutual+transitiveties,estimate = "CMLE")
-
-summary(f1)
+industry_matrix <- industry_matrix[common_ids, common_ids]
+location_matrix <- location_matrix[common_ids, common_ids]
+```
+```{r}
 
 ```
 
-¿Qué puede concluir sobre el modelo? ¿Qué le dicen los estimadores sobre la presencia de mecanismos operantes en la red en el tiempo?
+```{r}
+X_list <- list(industry_matrix, location_matrix)
+qap_fit <-netlogit(adjacency_matrix,X_list, rep = 10)
+```
+```{r}
+summary(qap_fit)
+```
 
-4. **Evaluando el desempeño del modelo:** Ahora evalúe los resultados del modelo utilizando la función *GOF*. Utilice 100 simulaciones para validar el comportamiento. Grafique los resultados del *GOF* y evalue la convergencia de su modelo. Concluya al respecto de la significancia de los estimadores y la convergencia del modelo. Haga los cambios pertinentes para asegurar que el modelo converja antes de seguir al siguiente literal.
-
-```{r,warning=FALSE,message=FALSE}
-# Correr el GOF
-gof.fit1<-gof(f1, control = control.gof.ergm(nsim = 100))
-par(mfrow = c(3,2))
-plot(gof.fit1, main = "")
+```{r}
+colnames(nodos)
 
 ```
 
-5. ***Conclusiones finales:*** Teniendo en cuenta los resultados de la simulaciones con los modelos ERGM y STERGM, ¿qué podría concluir sobre las dinámicas de las redes de estos grupos de monjes?
