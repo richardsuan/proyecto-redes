@@ -32,6 +32,48 @@ g <- graph_from_data_frame(d = arcos, vertices = nodos, directed = TRUE)
 print(g)  # Información del grafo
 plot(g, vertex.size=10, vertex.label=NA)  # Visualizar
 ```
+
+
+
+```{r, warning=FALSE, message=FALSE}
+library(igraph)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# Leer los datos
+arcos <- readxl::read_excel(file.path(getwd(), "arcos_fase2.xlsx"))
+nodos <- readxl::read_excel(file.path(getwd(), "datos.xlsx"))
+
+# Crear el grafo dirigido
+g <- graph_from_data_frame(d = arcos, vertices = nodos, directed = TRUE)
+
+# Detectar comunidades usando cluster_walktrap (o cluster_infomap)
+comunidades <- cluster_walktrap(g) # o cluster_infomap(g)
+
+# Convertir el resultado a una lista de pertenencia
+membresia <- membership(comunidades)
+
+# Calcular el tamaño de cada comunidad
+tamano_comunidades <- table(membresia)
+
+# Convertir a data frame y ordenar por tamaño
+df_comunidades <- data.frame(Comunidad = names(tamano_comunidades), Tamaño = as.numeric(tamano_comunidades))
+df_comunidades <- df_comunidades %>% arrange(desc(Tamaño))
+
+# Seleccionar las 10 comunidades más grandes
+top_10_comunidades <- df_comunidades[1:10, ]
+
+# Crear el gráfico
+ggplot(top_10_comunidades, aes(x = reorder(Comunidad, Tamaño), y = Tamaño)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +
+  labs(title = "Cantidad de Nodos por Comunidad (Top 10)",
+       x = "Comunidad",
+       y = "Cantidad de Nodos") +
+  theme_minimal()
+```
+aa
 ```{r,warning=FALSE,message=FALSE}
 edges_df <- as_data_frame(g, what = "edges")
 
